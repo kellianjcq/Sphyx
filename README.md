@@ -1,139 +1,108 @@
-# CabalScan — On-Chain Rug Scanner
+# CabalScan
 
-> Detect hidden wallet concentration and serial rug-pull fingerprints in Solana tokens before you ape in.
+Solana blockchain surveillance platform — detects cabal wallet coordination and serial rug-pull operator fingerprints.
 
-## Live at
-`https://cabalscan.vercel.app` (after deployment)
+## Quick Start
 
----
-
-## Stack
-- **Framework**: Next.js 14 (Pages Router)
-- **Styling**: Pure CSS with CSS variables — no Tailwind, no UI libs
-- **Fonts**: IBM Plex Mono + Syne (Google Fonts)
-- **Hosting**: Vercel
-
----
-
-## Deploy to Vercel in 3 steps
-
-### Option A — Vercel CLI (fastest)
-```bash
-# 1. Install Vercel CLI
-npm i -g vercel
-
-# 2. Inside this folder
-cd cabalscan
-npm install
-
-# 3. Deploy
-vercel
-
-# Follow the prompts:
-# - Link to existing project? No
-# - Project name: cabalscan
-# - Directory: ./
-# - Override settings? No
-```
-
-Your site is live in ~60 seconds.
-
-### Option B — GitHub + Vercel Dashboard
-1. Push this folder to a new GitHub repo
-2. Go to vercel.com → Add New Project
-3. Import your repo
-4. Framework: **Next.js** (auto-detected)
-5. Click **Deploy**
-
----
-
-## Local development
 ```bash
 npm install
+cp .env.example .env
 npm run dev
-# → http://localhost:3000
 ```
 
----
+- **Build Terminal**: http://localhost:5173
+- **API**: http://localhost:3847
 
-## Connect real data (next steps)
+## Setup
 
-### 1. Helius webhook setup
+### 1 · Helius Webhooks
+
 ```bash
-# In your .env.local
-HELIUS_API_KEY=your_key_here
+# .env
+HELIUS_API_KEY=your_key
+HELIUS_WEBHOOK_SECRET=your_shared_secret
+PUBLIC_URL=https://your-deployed-url.com
+
+npm run helius:register
 ```
 
-Create a webhook at dashboard.helius.dev:
-- Type: `ACCOUNT_ACTIVITY`
-- Account addresses: leave blank (catch-all)
-- Webhook URL: `https://your-domain.vercel.app/api/webhook`
+Helius POSTs enhanced transactions to `POST /webhook/helius`. Test locally:
 
-### 2. Add API route for Helius
-Create `src/pages/api/webhook.js`:
-```js
-export default async function handler(req, res) {
-  const { accountData } = req.body;
-  // Process holder changes → run cabal detection → emit alert
-  res.status(200).json({ ok: true });
-}
+```bash
+curl -X POST http://localhost:3847/webhook/helius/test
 ```
 
-### 3. Add scan API route
-Create `src/pages/api/scan.js`:
-```js
-export default async function handler(req, res) {
-  const { address } = req.query;
-  const holders = await fetch(
-    `https://api.helius.xyz/v0/addresses/${address}/balances?api-key=${process.env.HELIUS_API_KEY}`
-  );
-  // Run cabal detection logic
-  res.status(200).json({ verdict, concentration, linkedWallets });
-}
+Admin API:
+- `GET /api/helius/status`
+- `GET /api/helius/webhooks`
+- `POST /api/helius/register`
+
+### 2 · Telegram Alerts
+
+```bash
+# .env
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_PRO_CHANNEL_ID=-100xxxxxxxxxx    # real-time
+TELEGRAM_FREE_CHANNEL_ID=-100xxxxxxxxxx     # 15-minute delay
 ```
 
----
+Or use `TELEGRAM_ALERT_CHANNEL_ID` for a single channel (free-tier delay applies).
 
-## File structure
-```
-cabalscan/
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── pages/
-│   │   ├── _app.js        ← App wrapper
-│   │   ├── _document.js   ← HTML head, meta, fonts
-│   │   └── index.js       ← Main landing page
-│   └── styles/
-│       └── globals.css    ← All styles + animations
-├── next.config.js
-├── package.json
-├── vercel.json
-└── README.md
+Test delivery:
+
+```bash
+curl -X POST http://localhost:3847/api/telegram/test
 ```
 
----
+### 3 · Track Record Dashboard
 
-## Sections
-- **Nav** — Fixed with Telegram bot CTA
-- **Ticker** — Live-scrolling alert feed
-- **Hero** — Title + demo scan card + CTA
-- **Stats bar** — Animated counters (scans, rugs, accuracy, saved)
-- **How it works** — 6-step grid
-- **Live scanner** — Interactive CA input with mock results
-- **Pricing** — 4-tier grid (Free / Basic $9 / Pro $49 / API $199)
-- **Track record** — Alert history table
-- **CTA** — Telegram bot link
-- **Footer**
+Open **track-record** tab in the Build Terminal, or:
 
----
+```bash
+curl http://localhost:3847/api/track-record
+```
 
-## Customize
-- Replace all `t.me/CabalScanBot` links with your actual bot username
-- Update stats in `SAMPLE_ALERTS` and `useCounter` with real data
-- Replace mock `runScan()` with a real `/api/scan` call
-- Add Stripe for subscription gating
+Metrics (90-day window):
+- Total alerts fired
+- Confirmed rug rate
+- False positive rate (30d survival)
+- Average alert → rug time
 
----
+Mark outcomes manually:
 
-Built with the Shovel Seller Protocol. The blockchain does not lie.
+```bash
+curl -X POST http://localhost:3847/api/track-record/outcome \
+  -H "Content-Type: application/json" \
+  -d '{"alertId": 1, "outcome": "rugged"}'
+```
+
+Liquidity removal webhooks auto-resolve pending alerts as `rugged`. Alerts older than 30 days auto-resolve as `survived`.
+
+## Architecture
+
+| Layer | Tech | Purpose |
+|-------|------|---------|
+| Ingest | Helius enhanced webhooks | Token mint / swap / LP events |
+| Ephemeral state | SQLite | Per-token data + webhook log |
+| Graph analysis | Python + NetworkX | Wallet clustering |
+| Alert queue | Redis | Real-time delivery |
+| Alerts | Telegram (pro + free tiers) | User notifications |
+| Trust | Solana memo program | Proof-of-prediction |
+
+## Terminal Panels
+
+| Panel | Route | Purpose |
+|-------|-------|---------|
+| prompt-forge | `#/prompt-forge` | Intelligence system prompt |
+| track-record | `#/dashboard` | Public accuracy dashboard |
+| alerts | `#/alerts` | Pipeline status + alert feed |
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhook/helius` | POST | Helius enhanced transaction webhook |
+| `/webhook/helius/test` | POST | Inject sample mint event |
+| `/api/track-record` | GET | Dashboard metrics |
+| `/api/telegram/test` | POST | Send test Telegram alert |
+| `/api/verify/:mint` | GET | Raw graph data for a token |
