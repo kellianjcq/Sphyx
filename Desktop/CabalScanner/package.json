@@ -1,0 +1,30 @@
+{
+  "name": "cabalscanner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CabalScan — Solana blockchain surveillance platform",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:terminal\"",
+    "dev:server": "node --watch server/index.js",
+    "dev:terminal": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "analyzer": "python services/analyzer/worker.py",
+    "helius:register": "node scripts/register-helius-webhook.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vite": "^6.0.7"
+  }
+}
